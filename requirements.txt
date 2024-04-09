@@ -1,0 +1,7 @@
+google-api-python-client
+functions_framework
+google-cloud-storage
+google-cloud-bigquery
+pandas
+fastparquet
+pyarrow
