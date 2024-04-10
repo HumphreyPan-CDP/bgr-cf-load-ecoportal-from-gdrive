@@ -10,6 +10,18 @@ gcloud functions deploy load-ecoportal-from-gdrive `
 --source=. `
 --entry-point=load_flie_from_gdrive `
 --trigger-http `
+--service-account=582280178007-compute@developer.gserviceaccount.com `
+--memory=2000MB
+
+gcloud functions deploy load-ecoportal-from-gdrive `
+--project=bgr-n-wmp2-6682 `
+--gen2 `
+--service-account=bgr-n-wmp-sa@bgr-n-wmp2-6682.iam.gserviceaccount.com `
+--runtime=python312 `
+--region=australia-southeast1 `
+--source=. `
+--entry-point=load_flie_from_gdrive `
+--trigger-http `
 --memory=2000MB
 
 # test parameters(for dev)

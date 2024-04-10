@@ -153,67 +153,70 @@ def load_flie_from_gdrive(request):
         response = {
             "message": error_msg
         }
-        return response, 400
-
-    scopes = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
-    creds, project_id = google.auth.default(scopes=scopes)
-
-    # from google.oauth2 import service_account
-    # creds = service_account.Credentials.from_service_account_file('key.json')
+        return (response, 400)
     
-    # use folder id to find files
-    query= f"'{gdrive_folder_id}' in parents"
-    files = search_file(query, creds)
+    try:
+        scopes = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
+        creds, project_id = google.auth.default(scopes=scopes)
 
-    log = {}
-
-    for table in target_tables:
-        print(f"dealing with file for table: {table}".center(150, '*'))
-        files_to_load = [file for file in files if (
-            (table in file['name'].lower()) and (file['name'].startswith(DOWDLOADED_FLAG)==False)
-            )
-            ]
+        # from google.oauth2 import service_account
+        # creds = service_account.Credentials.from_service_account_file('key.json')
         
-        if len(files_to_load)==0:
-            print(f"no new files for table: {table}")
-            log[table] = "no new files"
-        else:
-            log[table] = ",".join([file['name'] for file in files_to_load])
-            for file in files_to_load:
-                file_name = file['name']
-                print(f"dealing file: {file_name}".center(100, '*'))
-                
-                # parse hive partition value from file suffix
-                name_suffix = file_name.lower().replace(table, '').replace('.csv', '').replace('-', '')
-                try:
-                    partition = datetime.strptime(name_suffix, '%Y%m%d').date().strftime('%Y-%m-%d')
-                except ValueError:
-                    print(f"\t name_suffix of file {file_name} is not a date, will put file in to default partition {target_default_partition}")
-                    partition = target_default_partition
+        # use folder id to find files
+        query= f"'{gdrive_folder_id}' in parents"
+        files = search_file(query, creds)
 
-                # download file from Google drive
-                file_data = download_file_from_drive(file['id'], creds)
+        log = {}
 
-                # save raw csv to archive bucket
-                upload_file_to_bkt(landing_project, target_archive_bucket_name, f"{table}/{file_name}", file_data)
+        for table in target_tables:
+            print(f"dealing with file for table: {table}".center(150, '*'))
+            files_to_load = [file for file in files if (
+                (table in file['name'].lower()) and (file['name'].startswith(DOWDLOADED_FLAG)==False)
+                )
+                ]
+            
+            if len(files_to_load)==0:
+                print(f"no new files for table: {table}")
+                log[table] = "no new files"
+            else:
+                log[table] = ",".join([file['name'] for file in files_to_load])
+                for file in files_to_load:
+                    file_name = file['name']
+                    print(f"dealing file: {file_name}".center(100, '*'))
+                    
+                    # parse hive partition value from file suffix
+                    name_suffix = file_name.lower().replace(table, '').replace('.csv', '').replace('-', '')
+                    try:
+                        partition = datetime.strptime(name_suffix, '%Y%m%d').date().strftime('%Y-%m-%d')
+                    except ValueError:
+                        print(f"\t name_suffix of file {file_name} is not a date, will put file in to default partition {target_default_partition}")
+                        partition = target_default_partition
 
-                # remove special character from column names
-                file_df = pd.read_csv(io.StringIO(file_data.decode("utf-8")))
-                file_df.columns = normalise_column_name(file_df.columns)
-                file_df = file_df.astype(str)
-                print(f"\t rows_in_file: {len(file_df)}")
+                    # download file from Google drive
+                    file_data = download_file_from_drive(file['id'], creds)
 
-                # save file to hive-partition bucket
-                target_file_name = f"{table}/ingestion_date={partition}/{file_name.lower().replace('.csv', '.parquet')}"
-                target_blob = f"gs://{target_bucket_name}/{target_file_name}"
-                file_df.to_parquet(target_blob)
-                print(f"\t file {target_file_name} uploaded to {target_blob}")
+                    # save raw csv to archive bucket
+                    upload_file_to_bkt(landing_project, target_archive_bucket_name, f"{table}/{file_name}", file_data)
 
-                rename_gdrive_file(file['id'], f'{DOWDLOADED_FLAG}_{file_name}', creds)
+                    # remove special character from column names
+                    file_df = pd.read_csv(io.StringIO(file_data.decode("utf-8")))
+                    file_df.columns = normalise_column_name(file_df.columns)
+                    file_df = file_df.astype(str)
+                    print(f"\t rows_in_file: {len(file_df)}")
 
-            # create bigquery external table
-            file_prefix = f"gs://{target_bucket_name}/{table}"
-            create_bigquery_extranl_table(landing_project, target_dataset_name, table, file_prefix, "PARQUET")
+                    # save file to hive-partition bucket
+                    target_file_name = f"{table}/ingestion_date={partition}/{file_name.lower().replace('.csv', '.parquet')}"
+                    target_blob = f"gs://{target_bucket_name}/{target_file_name}"
+                    file_df.to_parquet(target_blob)
+                    print(f"\t file {target_file_name} uploaded to {target_blob}")
 
-    return log, 200
+                    rename_gdrive_file(file['id'], f'{DOWDLOADED_FLAG}_{file_name}', creds)
 
+                # create bigquery external table
+                file_prefix = f"gs://{target_bucket_name}/{table}"
+                create_bigquery_extranl_table(landing_project, target_dataset_name, table, file_prefix, "PARQUET")
+        return (log, 200)
+    
+    except Exception as e:
+        print( {str(e)})
+        return (str(e), 500)
