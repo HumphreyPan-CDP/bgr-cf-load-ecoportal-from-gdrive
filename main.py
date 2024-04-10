@@ -30,8 +30,8 @@ def search_file(query, creds):
                                             fields='nextPageToken, ' 'files(id, name, modifiedTime, description, webContentLink, webViewLink, capabilities)', 
                                             pageToken=page_token).execute()
             for file in response.get('files', []):
-                # print(f'Found file: {file.get("name")}, {file.get("id")}, {file.get("description")}, {file.get("capabilities")}')
-                print(f'Found file: {file.get("name")}, {file.get("id")}, {file.get("description")}')
+                print(f'Found file: {file.get("name")}, {file.get("id")}, {file.get("description")}, {file.get("capabilities")}')
+                # print(f'Found file: {file.get("name")}, {file.get("id")}, {file.get("description")}')
             files.extend(response.get('files', []))
             page_token = response.get('nextPageToken', None)
             if page_token is None:
