@@ -185,7 +185,7 @@ def load_flie_from_gdrive(request):
                     print(f"dealing file: {file_name}".center(100, '*'))
                     
                     # parse hive partition value from file suffix
-                    name_suffix = file_name.lower().replace(table, '').replace('.csv', '').replace('-', '')
+                    name_suffix = file_name.lower().replace('.csv', '').split('-')[-1]
                     try:
                         partition = datetime.strptime(name_suffix, '%Y%m%d').date().strftime('%Y-%m-%d')
                     except ValueError:
